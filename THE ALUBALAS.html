@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>THE ALUBALAS</title>
+<style>
+:root{--bg:#f0f2f5;--card:#fff;--tx:#1c1e21;--mu:#65676b;--bl:#1b74e8;--bd:#dddfe2;--rd:#d93025;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#18191a;--card:#242526;--tx:#e4e6eb;--mu:#b0b3b8;--bd:#3e4042;--bl:#4599ff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#18191a;--card:#242526;--tx:#e4e6eb;--mu:#b0b3b8;--bd:#3e4042;--bl:#4599ff;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+header{background:var(--card);border-bottom:1px solid var(--bd);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.logo{font-weight:800;color:var(--bl);font-size:22px;letter-spacing:1px}
+main{flex:1;width:100%;max-width:1000px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:12px}
+input,textarea{width:100%;padding:11px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit;margin:5px 0}
+button{background:var(--bl);color:#fff;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+button.g{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}button.r{background:var(--rd)}button.s{padding:5px 10px;font-size:13px}
+.auth{max-width:400px;margin:40px auto;text-align:center}.auth .logo{font-size:36px;margin-bottom:6px}
+.err{color:var(--rd);font-size:13px;min-height:18px}.mu{color:var(--mu);font-size:13px}
+.grid{display:grid;grid-template-columns:220px 1fr;gap:16px}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.av{width:38px;height:38px;border-radius:50%;background:var(--bl);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.row{display:flex;gap:10px;align-items:center}.post .t{white-space:pre-wrap;margin:10px 0}
+.acts{display:flex;gap:8px;border-top:1px solid var(--bd);padding-top:8px;flex-wrap:wrap}
+.cm{background:var(--bg);border-radius:14px;padding:6px 12px;margin:6px 0;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:7px;border-bottom:1px solid var(--bd);text-align:left}
+.tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+footer{text-align:center;padding:16px;color:var(--mu);font-size:13px;border-top:1px solid var(--bd);background:var(--card)}
+.sw{overflow-x:auto}
+</style></head><body>
+<header><span class="logo">THE ALUBALAS</span><span class="row"><span id="hr"></span><button class="g s" id="adm">Admin login</button></span></header>
+<main id="app"><div class="card">Loading…</div></main>
+<footer>Designed and created by Raymond Alubala<br>This site may sometimes be inaccessible during service maintenance.</footer>
+<script>
+let db=null,me=null,tab='members',isAdmin=false,unsubs=[];
+const $=s=>document.querySelector(s),app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=n=>String(n).replace(/\D/g,'');
+async function hash(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('alubalas:'+s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+const ini=n=>(n||'?').trim().charAt(0).toUpperCase();
+const ago=t=>new Date(t).toLocaleString();
+function clear(){unsubs.forEach(u=>u());unsubs=[]}
+
+async function init(){
+  try{const c=await claude.use('db');db=c}catch(e){db=null}
+  if(!db){app.innerHTML='<div class="card auth"><div class="logo">THE ALUBALAS</div><p>Please sign in to claude.ai to open this family site.</p></div>';return}
+  db.doc('site/status').onSnapshot(s=>{window.maint=s.exists&&s.data().maintenance===true;if(!isAdmin)route()},()=>route());
+}
+async function route(){
+  if(location.hash==='#a7x9q'){if(isAdmin)return;return adminGate()}
+  if(window.maint){clear2();app.innerHTML='<div class="card auth"><div class="logo">THE ALUBALAS</div><h2>Under maintenance</h2><p class="mu">We’re doing some service maintenance right now. Please come back soon.</p></div>';$('#hr').innerHTML='';return}
+  const n=ls.get('alb_me');
+  if(n){const s=await db.doc('members/'+n).get();if(s.exists){me={...s.data()};return feed()}ls.del('alb_me')}
+  authView('login')
+}
+function clear2(){}
+window.addEventListener('hashchange',route);
+$('#adm').onclick=()=>{if(location.hash==='#a7x9q'){isAdmin=false;adminGate()}else location.hash='#a7x9q'};
+
+function authView(mode){
+  const reg=mode==='reg';
+  app.innerHTML=`<div class="card auth"><div class="logo">THE ALUBALAS</div><p class="mu">${reg?'Create your family account':'Log in to your family space'}</p>
+  ${reg?'<input id="nm" placeholder="Full name" autocomplete="name">':''}
+  <input id="no" inputmode="tel" placeholder="Your number (phone number)" autocomplete="tel">
+  <input id="pw" type="password" placeholder="${reg?'Create a password (min 6 characters)':'Password'}">
+  ${reg?'<input id="pw2" type="password" placeholder="Confirm password">':''}
+  <div class="err" id="er"></div><button style="width:100%" id="go">${reg?'Create account':'Log in'}</button>
+  <p class="mu">${reg?'Already have an account?':'New here?'} <a href="#" id="sw" style="color:var(--bl)">${reg?'Log in':'Create account'}</a></p>
+  ${reg?'<p class="mu">One number can only create one account.</p>':''}</div>`;
+  $('#sw').onclick=e=>{e.preventDefault();authView(reg?'login':'reg')};
+  $('#go').onclick=async()=>{
+    const er=$('#er'),no=norm($('#no').value),pw=$('#pw').value;er.textContent='';
+    if(no.length<7)return er.textContent='Enter a valid number.';
+    if(pw.length<6)return er.textContent='Password must be at least 6 characters.';
+    const ref=db.doc('members/'+no);
+    try{
+      const s=await ref.get();
+      if(reg){
+        const nm=$('#nm').value.trim();
+        if(!nm)return er.textContent='Enter your name.';
+        if(pw!==$('#pw2').value)return er.textContent='Passwords do not match.';
+        if(s.exists)return er.textContent='This number already has an account. Please log in.';
+        await ref.set({name:nm,number:no,ph:await hash(pw),joined:Date.now()});
+      }else{
+        if(!s.exists||s.data().ph!==await hash(pw))return er.textContent='Wrong number or password.';
+      }
+      ls.set('alb_me',no);route();
+    }catch(e){er.textContent='Something went wrong. Try again.'}
+  };
+}
+
+function feed(){
+  clear();
+  $('#hr').innerHTML=`<span class="mu">${esc(me.name)}</span> <button class="g s" id="lo">Log out</button>`;
+  $('#lo').onclick=()=>{ls.del('alb_me');me=null;$('#hr').innerHTML='';route()};
+  app.innerHTML=`<div class="grid"><div class="card"><b>Family members</b><div id="ml" style="margin-top:10px"></div></div>
+  <div><div class="card"><div class="row"><span class="av">${esc(ini(me.name))}</span><b>${esc(me.name)}</b></div>
+  <textarea id="pt" rows="3" placeholder="What’s on your mind, ${esc(me.name.split(' ')[0])}?"></textarea><button id="pb">Post</button></div><div id="pl"></div></div></div>`;
+  $('#pb').onclick=async()=>{const t=$('#pt').value.trim();if(!t)return;$('#pt').value='';await db.collection('posts').add({by:me.number,name:me.name,text:t,ts:Date.now(),likes:[],comments:[]})};
+  unsubs.push(db.collection('members').onSnapshot(s=>{$('#ml').innerHTML=s.docs.map(d=>`<div class="row" style="margin:6px 0"><span class="av" style="width:28px;height:28px;font-size:13px">${esc(ini(d.data().name))}</span>${esc(d.data().name)}</div>`).join('')}));
+  unsubs.push(db.collection('posts').orderBy('ts','desc').limit(100).onSnapshot(s=>{
+    $('#pl').innerHTML=s.docs.map(d=>{const p=d.data(),liked=(p.likes||[]).includes(me.number);
+      return`<div class="card post"><div class="row"><span class="av">${esc(ini(p.name))}</span><div><b>${esc(p.name)}</b><div class="mu">${ago(p.ts)}</div></div></div>
+      <div class="t">${esc(p.text)}</div><div class="mu">${(p.likes||[]).length} likes · ${(p.comments||[]).length} comments</div>
+      <div class="acts"><button class="g s" data-l="${d.id}">${liked?'Unlike':'Like'}</button>${p.by===me.number?`<button class="g s" data-x="${d.id}">Delete</button>`:''}</div>
+      ${(p.comments||[]).map(c=>`<div class="cm"><b>${esc(c.name)}</b> ${esc(c.text)}</div>`).join('')}
+      <input data-c="${d.id}" placeholder="Write a comment and press Enter"></div>`}).join('')||'<div class="card mu">No posts yet. Be the first to share something!</div>';
+    document.querySelectorAll('[data-l]').forEach(b=>b.onclick=async()=>{const r=db.doc('posts/'+b.dataset.l),p=(await r.get()).data(),l=p.likes||[];await r.update({likes:l.includes(me.number)?l.filter(x=>x!==me.number):[...l,me.number]})});
+    document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>db.doc('posts/'+b.dataset.x).delete());
+    document.querySelectorAll('[data-c]').forEach(i=>i.onkeydown=async e=>{if(e.key!=='Enter'||!i.value.trim())return;const r=db.doc('posts/'+i.dataset.c),p=(await r.get()).data();await r.update({comments:[...(p.comments||[]),{name:me.name,text:i.value.trim(),ts:Date.now()}]})});
+  }));
+}
+
+/* ---------- Admin (hidden, owner + password) ---------- */
+async function adminGate(){
+  clear();$('#hr').innerHTML='';
+  app.innerHTML=`<div class="card auth"><h2>Admin login</h2><input id="au" placeholder="Username" autocomplete="off"><input id="ap" type="password" placeholder="Password"><div class="err" id="er"></div><button id="ab" style="width:100%">Log in</button><p><a href="#" id="bk" style="color:var(--bl)">Back to site</a></p></div>`;
+  $('#bk').onclick=e=>{e.preventDefault();location.hash='';route()};
+  $('#ab').onclick=async()=>{
+    if(await hash($('#au').value.trim()+':'+$('#ap').value)!=='8a1f17fcb44f57e52cfc49e05a9d821be5606627b201bbfba176fa402b55c8a3')return $('#er').textContent='Incorrect username or password.';
+    isAdmin=true;dash()};
+}
+function dash(){
+  clear();
+  $('#hr').innerHTML='<button class="g s" id="ex">Exit</button>';$('#ex').onclick=()=>{isAdmin=false;location.hash='';route()};
+  app.innerHTML=`<div class="tabs"><button data-t="members" class="${tab==='members'?'':'g'}">Members</button><button data-t="posts" class="${tab==='posts'?'':'g'}">Posts</button><button data-t="site" class="${tab==='site'?'':'g'}">Site</button></div><div id="dv"></div>`;
+  document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;dash()});
+  const dv=$('#dv');
+  if(tab==='members')unsubs.push(db.collection('members').onSnapshot(s=>{
+    dv.innerHTML=`<div class="card sw"><b>${s.size} members</b><table><tr><th>Name</th><th>Number</th><th>Joined</th><th></th></tr>${s.docs.map(d=>{const m=d.data();return`<tr><td>${esc(m.name)}</td><td>${esc(m.number)}</td><td>${ago(m.joined)}</td><td><button class="g s" data-e="${d.id}">Edit</button> <button class="g s" data-rp="${d.id}">Reset password</button> <button class="r s" data-d="${d.id}">Delete</button></td></tr>`}).join('')}</table></div>`;
+    dv.querySelectorAll('[data-e]').forEach(b=>b.onclick=async()=>{const n=prompt('New name',(await db.doc('members/'+b.dataset.e).get()).data().name);if(n)db.doc('members/'+b.dataset.e).update({name:n})});
+    dv.querySelectorAll('[data-rp]').forEach(b=>b.onclick=async()=>{const n=prompt('New password (min 6)');if(n&&n.length>=6)db.doc('members/'+b.dataset.rp).update({ph:await hash(n)})});
+    dv.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{if(confirm('Delete this member? Their number can then register again.'))db.doc('members/'+b.dataset.d).delete()});
+  }));
+  if(tab==='posts')unsubs.push(db.collection('posts').orderBy('ts','desc').limit(200).onSnapshot(s=>{
+    dv.innerHTML=s.docs.map(d=>{const p=d.data();return`<div class="card"><b>${esc(p.name)}</b> <span class="mu">${esc(p.by)} · ${ago(p.ts)}</span><div class="post"><div class="t">${esc(p.text)}</div></div><button class="g s" data-e="${d.id}">Edit</button> <button class="r s" data-d="${d.id}">Delete</button></div>`}).join('')||'<div class="card mu">No posts.</div>';
+    dv.querySelectorAll('[data-e]').forEach(b=>b.onclick=async()=>{const n=prompt('Edit post',(await db.doc('posts/'+b.dataset.e).get()).data().text);if(n!==null)db.doc('posts/'+b.dataset.e).update({text:n})});
+    dv.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{if(confirm('Delete post?'))db.doc('posts/'+b.dataset.d).delete()});
+  }));
+  if(tab==='site'){
+    const m=window.maint===true;
+    dv.innerHTML=`<div class="card"><b>Maintenance mode</b><p class="mu">Currently ${m?'ON — members see a maintenance page.':'OFF — site is open to members.'}</p><button id="mt" class="${m?'':'r'}">${m?'Turn maintenance OFF':'Turn maintenance ON'}</button></div>
+`;
+    $('#mt').onclick=async()=>{try{await db.doc('site/status').set({maintenance:!m});window.maint=!m;dash()}catch(e){alert('Maintenance mode can only be changed by the page owner’s account.')}};
+  }
+}
+init();
+</script></body></html>
